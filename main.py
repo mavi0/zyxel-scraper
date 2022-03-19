@@ -28,85 +28,103 @@ class Scrape:
         self.__output["datetime"] = str(self.__time)
 
     def scrape(self):
-        # try:
-        logger.info("Connecting to device....")
+        try:
+            logger.info("Connecting to device....")
 
-        buff = ''
-        resp = ''
+            buff = ''
+            resp = ''
 
-        bandwidth_dict = {}
-        bandwidth_dict[0] = 5
-        bandwidth_dict[1] = 10
-        bandwidth_dict[2] = 15
-        bandwidth_dict[3] = 20
-        bandwidth_dict[4] = 25
-        bandwidth_dict[5] = 30
-        bandwidth_dict[6] = 40
-        bandwidth_dict[7] = 50
-        bandwidth_dict[8] = 60
-        bandwidth_dict[9] = 70
-        bandwidth_dict[10] = 80
-        bandwidth_dict[11] = 90
-        bandwidth_dict[12] = 100
-        bandwidth_dict[13] = 200
-        bandwidth_dict[14] = 400
+            bandwidth_dict = {}
+            bandwidth_dict[0] = 5
+            bandwidth_dict[1] = 10
+            bandwidth_dict[2] = 15
+            bandwidth_dict[3] = 20
+            bandwidth_dict[4] = 25
+            bandwidth_dict[5] = 30
+            bandwidth_dict[6] = 40
+            bandwidth_dict[7] = 50
+            bandwidth_dict[8] = 60
+            bandwidth_dict[9] = 70
+            bandwidth_dict[10] = 80
+            bandwidth_dict[11] = 90
+            bandwidth_dict[12] = 100
+            bandwidth_dict[13] = 200
+            bandwidth_dict[14] = 400
 
+            ssh = paramiko.SSHClient()
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            ssh.connect(self.__cpe_hostname, username=self.__cpe_uname, password=self.__cpe_passwd)
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            chan = ssh.invoke_shell()
 
-        ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        ssh.connect(self.__cpe_hostname, username=self.__cpe_uname, password=self.__cpe_passwd)
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        chan = ssh.invoke_shell()
+            logger.info("Connected to: " + self.__cpe_uname + "@" + self.__cpe_hostname)
 
-        logger.info("Connected to: " + self.__cpe_uname + "@" + self.__cpe_hostname)
+            # turn off paging
+            chan.send('terminal length 0\n')
+            time.sleep(1)
+            resp = chan.recv(9999)
+            output = resp.decode('ascii').split(',')
 
-        # turn off paging
-        chan.send('terminal length 0\n')
-        time.sleep(1)
-        resp = chan.recv(9999)
-        output = resp.decode('ascii').split(',')
-        #print (''.join(output))
+            # get cell data
+            chan.send('atcmd /dev/ttyUSB3 at+qeng=\\\"servingcell\\\"')
+            chan.send('\n')
+            time.sleep(1)
+            resp = chan.recv(9999)
+            output = resp.decode('ascii').strip().split(',')
 
-        # Display output of first command
-        chan.send('atcmd /dev/ttyUSB3 at+qeng=\\\"servingcell\\\"')
-        chan.send('\n')
-        time.sleep(1)
-        resp = chan.recv(9999)
-        output = resp.decode('ascii').strip().split(',')
+            stats = {}
 
-        stats = {}
+            stats["duplex_mode"] = output[-13].strip('"')
+            stats["MCC"] = int(output[-12].strip())
+            stats["MNC"] = int(output[-11])
+            stats["cell_ID"] = int(output[-10])
+            stats["PCID"] = int(output[-9])
+            stats["TAC"] = int(output[-8])
+            stats["ARFCN"] = int(output[-7])
+            stats["band"] = int(output[-6])
+            stats["DL_BW"] = bandwidth_dict.get(int(output[-5]))
+            stats["RSRP"] = int(output[-4])
+            stats["RSRQ"] = int(output[-3])
+            stats["SINR"] = int(output[-2])
 
-        stats["duplex_mode"] = output[-13].strip('"')
-        stats["MCC"] = int(output[-12].strip())
-        stats["MNC"] = int(output[-11])
-        stats["cell_ID"] = int(output[-10])
-        stats["PCID"] = int(output[-9])
-        stats["TAC"] = int(output[-8])
-        stats["ARFCN"] = int(output[-7])
-        stats["band"] = int(output[-6])
-        stats["DL_BW"] = bandwidth_dict.get(int(output[-5]))
-        stats["RSRP"] = int(output[-4])
-        stats["RSRQ"] = int(output[-3])
-        stats["SINR"] = int(output[-2])
+            # make sure modulation monitoring command is enabled
+            chan.send('atcmd /dev/ttyUSB3 at+qnwcfg=\\\"nr5g_dlmcs\\\",1')
+            chan.send('\n')
+            time.sleep(1)
+            resp = chan.recv(9999)
+            chan.send('atcmd /dev/ttyUSB3 at+qnwcfg=\\\"nr5g_ulmcs\\\",1')
+            chan.send('\n')
+            time.sleep(1)
+            resp = chan.recv(9999)
 
-        logger.info("Stats Dump:\n" + json.dumps(stats, indent=2))
+            # get modulation data DL
+            chan.send('atcmd /dev/ttyUSB3 at+qnwcfg=\\\"nr5g_dlmcs\\\"')
+            chan.send('\n')
+            time.sleep(1)
+            resp = chan.recv(9999)
+            output = resp.decode('ascii').strip().split(',')
+            stats["DL_MCS"] = int(output[2])
+            stats["DL_MOD"] = int(output[3][0])
 
-        # Display output of second command
-        # chan.send('sh ver')
-        # chan.send('\n')
-        # time.sleep(1)
-        # resp = chan.recv(9999)
-        # output = resp.decode('ascii').split(',')
-        # print (''.join(output))
+            # get modulation data UL
+            chan.send('atcmd /dev/ttyUSB3 at+qnwcfg=\\\"nr5g_ulmcs\\\"')
+            chan.send('\n')
+            time.sleep(1)
+            resp = chan.recv(9999)
+            output = resp.decode('ascii').strip().split(',')
+            stats["UL_MCS"] = int(output[2])
+            stats["UL_MOD"] = int(output[3][0])
 
-        ssh.close()  
-        self.__output["rf_stats"] = stats
+            logger.info("Stats Dump:\n" + json.dumps(stats, indent=2))
 
-        # except Exception as e:
-        #     logger.error(e)
-        #     logger.warning(
-        #         "There was an error gathering RF stats. Proceeding...")
-        #     pass
+            ssh.close()  
+            self.__output["rf_stats"] = stats
+
+        except Exception as e:
+            logger.error(e)
+            logger.warning(
+                "There was an error gathering RF stats. Proceeding...")
+            pass
 
    
     def get_output(self):
