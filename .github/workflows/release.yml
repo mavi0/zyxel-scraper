@@ -15,6 +15,7 @@ jobs:
     name: Docker Release
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       packages: write
     steps:
       - name: Checkout
