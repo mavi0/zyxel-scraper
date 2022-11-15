@@ -22,6 +22,7 @@ class Scrape:
         self.__cpe_uname = os.environ.get('CPE_UNAME', "root")
         self.__cpe_passwd = os.environ.get('CPE_PASSWD', "root")
         self.__cpe_hostname = os.environ.get('CPE_HOSTNAME', "192.168.1.1")
+        self.__imsi = os.environ.get('IMSI', "DEFAULT")
         self.__interval = int(os.environ.get('INTERVAL', 300))
         self.__output = {}
         self.__output["client_id"] = self.__client_id
@@ -73,6 +74,8 @@ class Scrape:
             output = resp.decode('ascii').strip().split(',')
 
             stats = {}
+
+            stats["IMSI"] = self.__imsi
 
             stats["duplex_mode"] = output[-13].strip('"')
             stats["MCC"] = int(output[-12].strip())
