@@ -75,13 +75,16 @@ class Scrape:
 
             #get system upime
             output = self.__get_data(chan, 'cat /proc/uptime')
-            print(re.findall("\d+\.\d+", output[0])[0])
+            stats["system_uptime"] = float(re.findall("\d+\.\d+", output[0])[0])
 
-            # stats["uptime"] = float(output[0])
+            #  = float(output[0])
 
             #get wwan0 interface stats  
             output = self.__get_data(chan, 'ifconfig wwan0')
-            print(output)
+            if output.find("UP"):
+                stats["wwan_up"] = 1
+
+            print(re.findall("\d+\.\d+", output[0]))
 
 
             # get cell data
