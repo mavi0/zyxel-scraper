@@ -28,9 +28,19 @@ class Scrape:
         self.__output["client_id"] = self.__client_id
         self.__output["datetime"] = str(self.__time)
 
+    def __get_data(self, chan, command):
+        chan.send(command)
+        chan.send('\n')
+        time.sleep(1)
+        resp = chan.recv(9999)
+        return resp.decode('ascii').strip().split(',') or None
+
     def scrape(self):
         try:
             logger.info("Connecting to device....")
+
+            stats = {}
+            stats["IMSI"] = self.__imsi
 
             buff = ''
             resp = ''
@@ -61,22 +71,19 @@ class Scrape:
             logger.info("Connected to: " + self.__cpe_uname + "@" + self.__cpe_hostname)
 
             # turn off paging
-            chan.send('terminal length 0\n')
-            time.sleep(1)
-            resp = chan.recv(9999)
-            output = resp.decode('ascii').split(',')
+            output = self.__get_data(chan, 'terminal length 0\n')  
+
+            #get system upime
+            output = self.__get_data(chan, 'cat /proc/uptime')
+            stats["uptime"] = float(output[0])
+
+            #get wwan0 interface stats  
+            output = self.__get_data(chan, 'cat /proc/uptime')
+            print(output)
+
 
             # get cell data
-            chan.send('atcmd /dev/ttyUSB3 at+qeng=\\\"servingcell\\\"')
-            chan.send('\n')
-            time.sleep(1)
-            resp = chan.recv(9999)
-            output = resp.decode('ascii').strip().split(',')
-
-            stats = {}
-
-            stats["IMSI"] = self.__imsi
-
+            output = self.__get_data(chan, 'atcmd /dev/ttyUSB3 at+qeng=\\\"servingcell\\\"')
             stats["duplex_mode"] = output[-13].strip('"')
             stats["MCC"] = int(output[-12].strip())
             stats["MNC"] = int(output[-11])
@@ -91,30 +98,16 @@ class Scrape:
             stats["SINR"] = int(output[-2])
 
             # make sure modulation monitoring command is enabled
-            chan.send('atcmd /dev/ttyUSB3 at+qnwcfg=\\\"nr5g_dlmcs\\\",1')
-            chan.send('\n')
-            time.sleep(1)
-            resp = chan.recv(9999)
-            chan.send('atcmd /dev/ttyUSB3 at+qnwcfg=\\\"nr5g_ulmcs\\\",1')
-            chan.send('\n')
-            time.sleep(1)
-            resp = chan.recv(9999)
+            output = self.__get_data(chan, 'atcmd /dev/ttyUSB3 at+qnwcfg=\\\"nr5g_dlmcs\\\",1')
+            output = self.__get_data(chan, 'atcmd /dev/ttyUSB3 at+qnwcfg=\\\"nr5g_ulmcs\\\",1')
 
             # get modulation data DL
-            chan.send('atcmd /dev/ttyUSB3 at+qnwcfg=\\\"nr5g_dlmcs\\\"')
-            chan.send('\n')
-            time.sleep(1)
-            resp = chan.recv(9999)
-            output = resp.decode('ascii').strip().split(',')
+            output = self.__get_data(chan, 'atcmd /dev/ttyUSB3 at+qnwcfg=\\\"nr5g_dlmcs\\\"')
             stats["DL_MCS"] = int(output[2])
             stats["DL_MOD"] = int(output[3][0])
 
             # get modulation data UL
-            chan.send('atcmd /dev/ttyUSB3 at+qnwcfg=\\\"nr5g_ulmcs\\\"')
-            chan.send('\n')
-            time.sleep(1)
-            resp = chan.recv(9999)
-            output = resp.decode('ascii').strip().split(',')
+            output = self.__get_data(chan, 'atcmd /dev/ttyUSB3 at+qnwcfg=\\\"nr5g_ulmcs\\\"')
             stats["UL_MCS"] = int(output[2])
             stats["UL_MOD"] = int(output[3][0])
 
@@ -125,7 +118,7 @@ class Scrape:
 
         except Exception as e:
             logger.error(e)
-            logger.warning(
+            logger.error(
                 "There was an error gathering RF stats. Proceeding...")
             pass
 
