@@ -1,4 +1,4 @@
-import time, os, errno, copy
+import time, os, errno, copy, re
 import coloredlogs, logging
 from pathlib import Path
 from datetime import datetime
@@ -75,7 +75,7 @@ class Scrape:
 
             #get system upime
             output = self.__get_data(chan, 'cat /proc/uptime')
-            print(output[-2])
+            print(re.findall("\d+\.\d+", output[0])
 
             # stats["uptime"] = float(output[0])
 
