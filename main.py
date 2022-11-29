@@ -75,7 +75,9 @@ class Scrape:
 
             #get system upime
             output = self.__get_data(chan, 'cat /proc/uptime')
-            stats["uptime"] = float(output[0])
+            print(output)
+
+            # stats["uptime"] = float(output[0])
 
             #get wwan0 interface stats  
             output = self.__get_data(chan, 'cat /proc/uptime')
