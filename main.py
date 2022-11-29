@@ -84,7 +84,7 @@ class Scrape:
             if output[0].find("UP"):
                 stats["wwan_up"] = 1
 
-            print(re.findall("\d+\.\d+", output[0]))
+            print(re.findall(r'\d+', output[0]))
 
 
             # get cell data
