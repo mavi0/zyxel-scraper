@@ -75,7 +75,7 @@ class Scrape:
 
             #get system upime
             output = self.__get_data(chan, 'cat /proc/uptime')
-            print(re.findall("\d+\.\d+", output[0])
+            print(re.findall("\d+\.\d+", output[0]))
 
             # stats["uptime"] = float(output[0])
 
