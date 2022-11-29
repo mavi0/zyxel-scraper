@@ -81,7 +81,7 @@ class Scrape:
 
             #get wwan0 interface stats  
             output = self.__get_data(chan, 'ifconfig wwan0')
-            if output.find("UP"):
+            if output[0].find("UP"):
                 stats["wwan_up"] = 1
 
             print(re.findall("\d+\.\d+", output[0]))
