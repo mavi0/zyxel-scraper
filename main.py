@@ -77,15 +77,20 @@ class Scrape:
             output = self.__get_data(chan, 'cat /proc/uptime')
             stats["system_uptime"] = float(re.findall("\d+\.\d+", output[0])[0])
 
-            #  = float(output[0])
-
             #get wwan0 interface stats  
-            output = self.__get_data(chan, 'ifconfig wwan0')
-            if output[0].find("UP"):
-                stats["wwan_up"] = 1
+            try:
+                output = self.__get_data(chan, 'ifconfig wwan0')
+                if output[0].find("UP"):
+                    stats["wwan_up"] = 1
+                else:
+                    stats["wwan_up"] = 0
 
-            print(re.findall(r'\d+', output[0])[29])
-            print(re.findall(r'\d+', output[0])[32])
+                stats["rx_bytes"] = int(re.findall(r'\d+', output[0])[29])
+                stats["tx_bytes"] = int(re.findall(r'\d+', output[0])[32])
+            except Exception as e:
+                logger.warn("Could not poll the wwan iface - assuming down.")
+                stats["wwan_up"] = 0
+
 
 
             # get cell data
